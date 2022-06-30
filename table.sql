@@ -401,13 +401,13 @@ INSERT into comment
 VALUEs
     ('hello', 'sadegh_jafari', 'Database Course' , 'quiz1' )
 
-
+----deletes
 -- delete from comment where commentID = 1
-delete from member where accountID = 'sadegh_jafari'
 
-select *
-from observe
-WHERE accountID = 'sadegh_jafari'
 
-delete from project WHERE projectID = 'Database Course'
+-- delete from member where accountID = 'sadegh_jafari'
+
+
+
+-- delete from project WHERE projectID = 'Database Course'
 
