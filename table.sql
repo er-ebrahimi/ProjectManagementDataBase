@@ -33,23 +33,23 @@ CREATE TABLE member
     accountID nchar(32) not NULL,
     projectID nchar(32) not NULL,
     PRIMARY KEY (accountID,projectID),
-    constraint FK_member_account FOREIGN key(accountID) REFERENCES account(accountID)on delete CASCADE on update CASCADE,
-    constraint FK_member_projectID FOREIGN key(projectID) REFERENCES project(projectID)on delete CASCADE on update CASCADE
+    constraint FK_member_account FOREIGN key(accountID) REFERENCES account(accountID),--on delete CASCADE on update CASCADE,
+    constraint FK_member_projectID FOREIGN key(projectID) REFERENCES project(projectID)--on delete CASCADE on update CASCADE
 )
 GO
 --ADD constraint 
 --alter TABLE member add CONSTRAINT FK_member_account FOREIGN KEY(accountID) REFERENCES account(accountID)on delete CASCADE on update CASCADE
 
-GO
+-- GO
 
-CREATE TABLE accountHasProject
-(
-    accountID nchar(32) not NULL,
-    projectID nchar(32) not NULL,
-    PRIMARY KEY(accountID, projectID),
-    constraint FK_accountHasP_account FOREIGN key (accountID) REFERENCES account(accountID) on delete CASCADE on update CASCADE,
-    constraint FK_accountHasP_project FOREIGN key (projectID) REFERENCES project(projectID) on delete CASCADE on update CASCADE
-)
+-- CREATE TABLE accountHasProject
+-- (
+--     accountID nchar(32) not NULL,
+--     projectID nchar(32) not NULL,
+--     PRIMARY KEY(accountID, projectID),
+--     constraint FK_accountHasP_account FOREIGN key (accountID) REFERENCES account(accountID) on delete CASCADE on update CASCADE,
+--     constraint FK_accountHasP_project FOREIGN key (projectID) REFERENCES project(projectID) on delete CASCADE on update CASCADE
+-- )
 
 GO
 
@@ -58,8 +58,8 @@ CREATE TABLE admin
     accountID nchar(32) not NULL,
     projectID nchar(32) not NULL,
     PRIMARY KEY(accountID,projectID),
-    constraint FK_admin_account FOREIGN key(accountID) REFERENCES account(accountID)on delete CASCADE on update CASCADE,
-    constraint FK_admin_projectID FOREIGN key(projectID) REFERENCES project(projectID)on delete CASCADE on update CASCADE
+    constraint FK_admin_account FOREIGN key(accountID) REFERENCES account(accountID),--on delete CASCADE on update CASCADE,
+    constraint FK_admin_projectID FOREIGN key(projectID) REFERENCES project(projectID)--on delete CASCADE on update CASCADE
 )
 
 -- go
@@ -78,8 +78,8 @@ CREATE TABLE observe
     accountID nchar(32) not NULL,
     projectID nchar(32) not NULL,
     PRIMARY KEY(accountID,projectID),
-    constraint FK_observe_account FOREIGN key(accountID) REFERENCES account(accountID) on delete CASCADE on update CASCADE ,
-    constraint FK_observe_projectID FOREIGN key(projectID) REFERENCES project(projectID) on delete CASCADE on update CASCADE
+    constraint FK_observe_account FOREIGN key(accountID) REFERENCES account(accountID),-- on delete CASCADE on update CASCADE ,
+    constraint FK_observe_projectID FOREIGN key(projectID) REFERENCES project(projectID),-- on delete CASCADE on update CASCADE
 )
 GO
 
@@ -103,9 +103,7 @@ CREATE TABLE task
     ListID nchar(32),
     projectID nchar(32),
     taskID nchar(32) PRIMARY key,
-    accountIDCreated nchar(32),--I didn't set (not null) for it becuase if we delete it then the task shouldn't delete
-    constraint FK_task_admin FOREIGN key (accountIDCreated,projectID) REFERENCES admin(accountID,projectID),
-    constraint FK_task_List FOREIGN key (ListID, projectID) REFERENCES List(ListID, projectID)
+    constraint FK_task_List FOREIGN key (ListID, projectID) REFERENCES List(ListID, projectID) on DELETE CASCADE on update CASCADE
     ,
 )
 
@@ -196,20 +194,20 @@ create TRIGGER add_admin_member on admin after INSERT as BEGIN
 END
 
 
-GO
+-- GO
 
-create TRIGGER delete_admin_member on admin after delete as BEGIN
-    delete FROM member
-    from inserted i
-    where i.accountID = member.accountID
-END
+-- create TRIGGER delete_admin_member on admin after delete as BEGIN
+--     delete FROM member
+--     from inserted i
+--     where i.accountID = member.accountID
+-- END
 
 go
 
-create TRIGGER delete_admin_observator on admin after delete as BEGIN
-    delete from observe
+create TRIGGER delete_admin_member on member after delete as BEGIN
+    delete from admin
     from inserted i
-    where i.accountID = observe.accountID
+    where i.accountID = admin.accountID
 END
 
 GO
@@ -222,10 +220,10 @@ END
 
 go
 
-create TRIGGER delete_member_observator on member after delete as BEGIN
-    delete from observe
+create TRIGGER delete_member_observator on observe after delete as BEGIN
+    delete from member
     from inserted i
-    where i.accountID = observe.accountID
+    where i.accountID = member.accountID
 END
 
 go
@@ -253,13 +251,13 @@ END
 
 GO
 --no need to create trigger for update in admin becuase we can't change accountID
-create TRIGGER delete_task_admin on admin after delete as begin
-    --TODO if an admin delete its account then its tasks will delete to
-    update task 
-    set accountIDCreated = NULL
-    from deleted 
-    where deleted.accountID = task.accountIDCreated
-END
+-- create TRIGGER delete_task_admin on admin after delete as begin
+--     --TODO if an admin delete its account then its tasks will delete to
+--     update task 
+--     set accountIDCreated = NULL
+--     from deleted 
+--     where deleted.accountID = task.accountIDCreated
+-- END
 
 go
 --TODO change alter
@@ -272,12 +270,41 @@ END
 GO
 
 CREATE TRIGGER delete_member_complete on member after delete as BEGIN
-    delete from complete
-    from deleted
-    WHERE deleted.accountID = complete.accountID and deleted.projectID = complete.projectID
+    delete from complete from deleted WHERE deleted.accountID = complete.accountID and deleted.projectID = complete.projectID
 end
 
 GO
+
+CREATE TRIGGER delete_project on project INSTEAD of DELETE as BEGIN
+    DELETE from observe FROM deleted WHERE observe.projectID = deleted.ProjectID
+    DELETE from member FROM deleted WHERE member.projectID = deleted.ProjectID
+    DELETE from admin FROM deleted WHERE admin.projectID = deleted.ProjectID
+    DELETE from project FROM deleted WHERE project.projectID = deleted.ProjectID
+END
+
+GO
+
+CREATE TRIGGER delete_account on account INSTEAD of DELETE as BEGIN
+    DELETE from observe FROM deleted WHERE observe.accountID = deleted.accountID
+    DELETE from member FROM deleted WHERE member.accountID = deleted.accountID
+    DELETE from admin FROM deleted WHERE admin.accountID = deleted.accountID
+    DELETE from account FROM deleted WHERE account.accountID = deleted.accountID
+END
+
+GO
+
+CREATE TRIGGER delete_member on member INSTEAD of DELETE as BEGIN
+    DELETE from complete FROM deleted WHERE complete.accountID = deleted.accountID
+    DELETE from member FROM deleted WHERE member.accountID = deleted.accountID
+END
+GO
+
+CREATE TRIGGER delete_admin on admin INSTEAD of DELETE as BEGIN
+    DELETE from admins_task FROM deleted WHERE admins_task.accountID = deleted.accountID
+    DELETE from admin FROM deleted WHERE admin.accountID = deleted.accountID
+END
+
+go
 
 INSERT INTO account
 VALUES
@@ -345,47 +372,15 @@ VALUES
 
 GO
 
-
-
-GO
-
-INSERT INTO accountHasProject
-VALUES
-    ('shahrzad_azari', 'Database Course'),
-    ('a_ariannejad' , 'Database Course'),
-    ('zahra_amiri' , 'Database Course'),
-    ('alireza_haqani' , 'Database Course'),
-    ('hanie_jafari', 'Database Course'),
-    ('sadegh_jafari', 'Database Course'),
-    ('babak_behkamkia', 'Database Course'),
-    ('fatemezahrabakhshande', 'Database Course'),
-    ('sajjad_ramezani' , 'Database Course'),
-    ('heydari_arman', 'Database Course'),
-    ('saman_mohammadi' , 'Database Course'),
-    ('n_majidifard', 'Database Course'),
-    ('b_gholinejad', 'Database Course'),
-    ('parya_fasahat' , 'Database Course'),
-    ('m_nobakhtian', 'Database Course'),
-    ('iliya_mirzaei' , 'Database Course'),
-    ('amirali_farazmand', 'Project Management Database'),
-    ('aryan_abdollahi', 'Project Management Database'),
-    ('h_rahmani', 'Database Course'  ),
-    ('m_shahrabi', 'Database Course' ),
-    ('er_ebrahimi', 'Project Management Database')
-
-
-
-GO
-
 INSERT into List
 VALUES
     ('quiz' , 'Database Course')
-
+    
 GO
 
 insert into task
 VALUES
-    ( '20220610', '20220710' , 'quiz in middle of term', 'check', 'quiz', 'Database Course', 'quiz1' , 'm_shahrabi', 0  )
+    ( '20220610', '20220710' , 'quiz in middle of term', 'check', 'quiz', 'Database Course', 'quiz1' , 0  )
 GO
 
 --TODO how create project should added to admins_task
@@ -409,3 +404,10 @@ VALUEs
 
 -- delete from comment where commentID = 1
 delete from member where accountID = 'sadegh_jafari'
+
+select *
+from observe
+WHERE accountID = 'sadegh_jafari'
+
+delete from project WHERE projectID = 'Database Course'
+
