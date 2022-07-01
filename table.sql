@@ -17,14 +17,20 @@ create TABLE project
 (
     ProjectID nchar(32) not NULL PRIMARY key,
     kind NVARCHAR(max) not null,
-    date date NOT NULL,
+    startDate date NOT NULL,
     time TIME not NULL,
+    endDate Date,
+
     --discription
 )
 GO
 
 --Update table
 ALTER TABLE project ADD discription NVARCHAR(max) 
+
+GO
+
+Alter table project ADD CONSTRAINT Project_date CHECK (endDate > startDate)
 
 go
 
@@ -156,6 +162,8 @@ CREATE TABLE complete
     accountID nchar(32) not NULL,
     projectID nchar(32) not NULL,
     taskID nchar(32) not NULL,
+    Date DATE not null,
+    time time not null,
     constraint FK_complete_member  FOREIGN key (accountID,projectID) REFERENCES member(accountID,projectID),
     constraint FK_complete_task FOREIGN KEY (taskID) REFERENCES task(taskID)  on DELETE CASCADE on update CASCADE
 )
@@ -171,6 +179,8 @@ CREATE TABLE comment
     projectID nchar(32),
     taskID nchar(32) not NULL,
     commentID int not NULL IDENTITY(1,1),
+    Date DATE not null,
+    time Date not null,
     PRIMARY key( taskID,commentID),
     constraint FK_comment_task FOREIGN key(taskID) REFERENCES task(taskID) on delete CASCADE on update CASCADE,
     constraint FK_cmment_account FOREIGN key(accountID,projectID) REFERENCES member(accountID,projectID)
@@ -336,8 +346,8 @@ GO
 
 INSERT INTO project
 VALUES
-    ('Database Course', 'Course' , '20220301', '13:30' , 'Darse Database Daneshkade Computer' ),
-    ('Project Management Database' , 'Agile' , GETDATE() , '13:30', 'Project modiriat proje')
+    ('Database Course', 'Course' , '20220301', '13:30' , '20230301', 'Darse Database Daneshkade Computer' ),
+    ('Project Management Database' , 'Agile' , GETDATE() , '13:30', '20230301', 'Project modiriat proje')
 
 GO
 
@@ -380,7 +390,8 @@ GO
 
 insert into task
 VALUES
-    ( '20220610', '20220710' , 'quiz in middle of term', 'check', 'quiz', 'Database Course', 'quiz1' , 0  )
+    ( '20220610', '20220710' , 'quiz in middle of term', 'check', 'quiz', 'Database Course', 'quiz1' , 0  ),
+    ( '20220610', '20220710' , 'quiz in middle of term', 'check', 'quiz', 'Database Course', 'quiz2' , 0  )
 GO
 
 --TODO how create project should added to admins_task
@@ -393,13 +404,17 @@ GO
 
 insert into complete
 VALUES
-    (1, 'sadegh_jafari', 'Database Course' , 'quiz1' )
+    (1, 'sadegh_jafari', 'Database Course' , 'quiz1' , GETDATE() , '13:30'),
+    (0, 'iliya_mirzaei', 'Database Course' , 'quiz1' , GETDATE() , '13:30'),
+    (0, 'iliya_mirzaei', 'Database Course' , 'quiz2' , GETDATE() , '13:30')
 
 go
 
 INSERT into comment
 VALUEs
-    ('hello', 'sadegh_jafari', 'Database Course' , 'quiz1' )
+    ('hello', 'sadegh_jafari', 'Database Course' , 'quiz1', GETDATE() , '13:30' )
+
+----------------------------------------------------------------------------------------------------------------------------------------
 
 ----deletes
 -- delete from comment where commentID = 1
@@ -410,4 +425,249 @@ VALUEs
 
 
 -- delete from project WHERE projectID = 'Database Course'
+----------------------------------------------procdure
+GO
+--procedure:
+--	show comments of a task
+CREATE OR ALTER function show_all_comments (@taskID nchar(32))
+returns TABLE
+return
+SELECT *
+FROM comment c
+WHERE  c.taskID= @taskID
+
+--exec @show_all_comments = taskID
+GO
+--order the time of task in every project
+create or alter function order_completed_project (@projectID nchar(32))
+returns TABLE
+RETURN
+select m.accountID
+from member m join complete c on c.accountID = m.accountID
+where m.projectID = @projectID
+ORDER BY c.[Date]
+
+GO
+
+--procedure:
+--	compelete task 
+create procedure compelete_task
+    (@taskid nchar(32) ,
+    @memberid nchar(32) ,
+    @projectid nchar(32))
+as
+begin
+    insert into dbo.complete
+        (complete ,accountID , projectID ,taskID)
+    values( 1, @memberid , @projectid, @taskid)
+
+    update dbo.task
+	set flag =1 
+	where taskID= @taskid
+end
+
+
+GO
+
+--procedure:p03_(i11)
+--	compelete task 
+create or alter procedure compelete_task
+    (@taskid nchar(32) ,
+    @memberid nchar(32) ,
+    @projectid nchar(32))
+as
+begin
+    insert into dbo.complete
+        (complete ,accountID , projectID ,taskID)
+    values( 1, @memberid , @projectid, @taskid)
+
+    update dbo.task
+	set flag =1 
+	where taskID= @taskid
+end
+
+
+--exec compelete_task @taskid= , @memberid= , @projectid=
+GO
+
+
+-----------------------------------------------query:members who didn't do their task
+select m.accountID, a.firstName, a.lastName
+from member m join account a on a.accountID = m.accountID
+    join complete c on c.accountID = m.accountID
+WHERE c.complete <> 1 AND not exists (select m.accountID, a.firstName, a.lastName
+    from admin m join account a on a.accountID = m.accountID
+        join complete c on c.accountID = m.accountID
+    WHERE c.complete = 1)
+
+----------------------------------------------query:the members who has more than two tasks
+
+select m.accountID , COUNT(t.taskID) counting, a.firstName , a.lastName
+from task t join complete c on t.taskID = c.taskID
+    JOIN member m on m.accountID = c.accountID
+    JOIN account a on m.accountID = a.accountID
+GROUP BY m.accountID ,  a.firstName , a.lastName
+HAVING COUNT(t.taskID) >= 2
+
+---------------------------------------------query:every member order by count of task
+
+select m.accountID , COUNT(t.taskID) counting_task, a.firstName , a.lastName
+from task t join complete c on t.taskID = c.taskID
+    JOIN member m on m.accountID = c.accountID
+    JOIN account a on m.accountID = a.accountID
+GROUP BY m.accountID ,a.firstName , a.lastName
+ORDER BY  COUNT(t.taskID) desc
+
+---------------------------------------------query:order project by observator
+
+select p.projectID, COUNT(o.accountID) counting_account
+from project p join observe o on o.projectID = p.ProjectID
+GROUP by p.projectID
+ORDER BY COUNT(o.accountID) desc
+
+--------------------------------------------query:find someone how did all the task in one project and did nothing in another project
+
+    select m.accountID , m.projectID, complete.complete
+    from member m join complete c on m.accountID = c.accountID
+        join task t on t.taskID = c.taskID join project p on p.ProjectID = m.projectID, member m2 join complete on m2.accountID = complete.accountID
+    -- where complete.complete = 1 and c.projectID = m2.projectID
+    where complete.complete = 1 and c.projectID = m2.projectID and c.accountID = m2.accountID and complete.taskID = c.taskID
+    group by m.projectID,m.accountID,complete.complete
+    HAVING count(complete.taskID) IN (select count(complete.taskID)
+    from member m join complete c on m.accountID = c.accountID
+        join task t on t.taskID = c.taskID, member m2 join complete on m2.accountID = complete.accountID
+    group by m.accountID, complete.taskID )
+
+INTERSECT
+
+    select m.accountID , m.projectID, complete.complete
+    from member m join complete c on m.accountID = c.accountID
+        join task t on t.taskID = c.taskID join project p on p.ProjectID = m.projectID, member m2 join complete on m2.accountID = complete.accountID
+    where complete.complete = 0 and c.projectID = m2.projectID and c.accountID = m2.accountID and complete.taskID = c.taskID
+    group by m.projectID,m.accountID,complete.complete
+    HAVING count(complete.taskID) IN (select count(complete.taskID)
+    from member m join complete c on m.accountID = c.accountID
+        join task t on t.taskID = c.taskID, member m2 join complete on m2.accountID = complete.accountID
+    group by m.accountID, complete.taskID )
+
+----------------------------------------------query:
+--	 Show accounts list and their name sorted by number of projects they attended 
+SELECT a.accountID, concat(a.firstName,' ', a.lastName) as fullName , COUNT(p.ProjectID) AS TotalProjects
+FROM account a
+    INNER JOIN member m ON m.accountID=a.accountID
+    LEFT JOIN project p
+    ON p.projectID = m.ProjectID
+group by a.accountID , a.firstName ,a.lastName
+order by count(p.projectID)
+
+------------------------------------------------query:
+--	number of members,observers and admins for each project 
+select p.ProjectID
+       , count(o.accountID) as accountsCount
+from project p
+    left outer join observe o
+    on o.projectID=p.ProjectID
+group by p.projectID;
+
+----------------------------------------------query:q5_(i12.5) TODO what is this
+--	show remaining time and passed time for each task of a project
+select * , datediff(day ,t.startDate, getdate()) as passedTime_days, datediff(day ,getdate(),t.endDate) as remainigTime_days
+from task t
+where t.projectID= ' '
+
+----------------------------------------------qeury: q6_(i12)
+--	show passed time for each project
+select * , datediff(day ,p.startdate, getdate()) as passedTime_days
+from project p
+order by p.ProjectID
+
+
+-----------------------------------------------query:q7_(i16)
+--	show all unfinished tasks that their deadline time passed
+select * , datediff(day  , t.endDate , getdate()) as passedDays
+from task t
+where GETDATE() > t.endDate
+
+---------------------------------------------query:q8_(i18)
+--	show common members of 2 project
+select m1.accountID, m1.projectID as firstProjectID, m2.projectID as secondProjectID
+from member m1 inner join member m2 on m1.accountID=m2.accountID and m1.projectID<>m2.projectID
+
+---------------------------------------------query:q9_(i19)
+--	show members who hasnt done any task
+select *
+from account a
+where a.accountID not in (select c.accountID
+from complete c)
+
+----------------------------------------------query:q10_(i7)
+--	show all projects that a person attends in as member
+--	cnsider #aID as an accountID
+select *
+from account a
+    inner join admin ad on ad.accountID=a.accountID
+----------------------------------------------query:q10_(i7)
+select *
+from account a
+    inner join member m on m.accountID=a.accountID
+----------------------------------------------query:q10_(i7)
+select *
+from account a
+    inner join observe o on o.accountID=a.accountID
+
+-----------------------------------------------query:q11_(i3)
+--	show tasks of #listID 
+select *
+from task t
+where  t.ListID='#listID'
+
+-------------------------------------------------query:qa1_(i1)
+-- i1 
+-- show count & list of names of members of a #P project 
+SELECT A.firstName + ' ' + A.lastName AS Member_of_project,
+    A.accountID AS UserID
+FROM observe AS O
+    JOIN account AS A ON A.accountID = O.accountID
+WHERE O.projectID = '#P'
+-- 'Database Course'
+
+SELECT count(*)
+FROM observe AS O
+    JOIN account AS A ON A.accountID = O.accountID
+WHERE O.projectID = '#P'
+-- 'Database Course'
+---------------------------------------------------query:
+-- i2 
+-- show undone tasks from a project '#P' 
+SELECT T.taskID AS TaskID,
+    T.discription AS TaskDescription
+FROM task AS T
+    JOIN List AS L ON T.ListID = L.ListID
+    JOIN project AS P ON P.ProjectID = T.projectID
+WHERE T.flag = 0 AND T.projectID = '#P'
+-- 'Database Course'
+----------------------------------------------------query:qa3_(i4)
+-- i4
+-- show names of lists of a project '#P'
+SELECT L.ListID
+FROM project AS P
+    JOIN List AS L ON L.projectID = p.ProjectID
+WHERE p.ProjectID = 'Database Course'
+GROUP BY L.ListID
+-------------------------------------------------------query:q12_(i10.5)
+--	who made a task(full informations ) + taskID
+select a.* , t.taskID as createdTask
+from task t right join admins_task ad on ad.taskID=t.taskID
+    left join account a on a.accountID=ad.accountID
+-------------------------------------------------------query:maximum amount of comment
+select MAX(counted.num) most_comment , counted.accountID
+from ( select count(m.accountID )as num , m.accountID
+    from member m join comment on comment.accountID = m.accountID
+    group by m.accountID) as counted
+group by counted.accountID
+
+
+
+
+
 
