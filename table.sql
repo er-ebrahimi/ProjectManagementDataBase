@@ -54,11 +54,6 @@ CREATE TABLE member
     constraint FK_member_account FOREIGN key(accountID) REFERENCES account(accountID),--on delete CASCADE on update CASCADE,
     constraint FK_member_projectID FOREIGN key(projectID) REFERENCES project(projectID)--on delete CASCADE on update CASCADE
 )
-GO
---ADD constraint 
---alter TABLE member add CONSTRAINT FK_member_account FOREIGN KEY(accountID) REFERENCES account(accountID)on delete CASCADE on update CASCADE
-
--- GO
 
 
 GO
@@ -71,8 +66,6 @@ CREATE TABLE admin
     constraint FK_admin_account FOREIGN key(accountID) REFERENCES account(accountID),--on delete CASCADE on update CASCADE,
     constraint FK_admin_projectID FOREIGN key(projectID) REFERENCES project(projectID)--on delete CASCADE on update CASCADE
 )
-
--- go
 
 
 GO
@@ -103,7 +96,7 @@ CREATE TABLE task
     startDate date not NULL,
     endDate date not null,
     discription NVARCHAR(max),
-    kind NVARCHAR(max),--TODO what is this
+    kind NVARCHAR(max),
     ListID nchar(32),
     projectID nchar(32),
     taskID nchar(32) PRIMARY key,
@@ -188,14 +181,7 @@ CREATE TABLE comment
     constraint FK_cmment_account FOREIGN key(accountID,projectID) REFERENCES member(accountID,projectID)
 )
 
--- go
 
--- create table watch
--- (
---     accountID nchar(32) not null,
---     projectID nchar(32) not null,
---     constraint FK_watch_observe FOREIGN key (accountID,projectID) REFERENCES observe(accountID,projectID) on delete CASCADE on update CASCADE,
--- )
 ----------------------------------------------@trigger 
 go
 
@@ -205,14 +191,6 @@ create TRIGGER add_admin_member on admin after INSERT as BEGIN
     from inserted i
 END
 
-
--- GO
-
--- create TRIGGER delete_admin_member on admin after delete as BEGIN
---     delete FROM member
---     from inserted i
---     where i.accountID = member.accountID
--- END
 
 go
 
@@ -240,7 +218,7 @@ END
 
 go
 
-create TRIGGER delete_project_admin on project after DELETE as BEGIN--TODO maybe we have probleme in this becuase admin delete member to 
+create TRIGGER delete_project_admin on project after DELETE as BEGIN
     DELETE from admin
     from deleted
     where deleted.ProjectID  = admin.ProjectID
@@ -262,17 +240,8 @@ create TRIGGER delete_project_observe on project after DELETE as BEGIN
 END
 
 GO
---no need to create trigger for update in admin becuase we can't change accountID
--- create TRIGGER delete_task_admin on admin after delete as begin
---     -- if an admin delete its account then its tasks will delete to
---     update task 
---     set accountIDCreated = NULL
---     from deleted 
---     where deleted.accountID = task.accountIDCreated
--- END
 
 go
---TODO change alter
 create TRIGGER delete_member_comment on complete after  delete as BEGIN
     UPDATE comment
     set accountID = null
@@ -357,7 +326,8 @@ INSERT INTO [admin]
 VALUES
     ('h_rahmani', 'Database Course'  ),
     ('m_shahrabi', 'Database Course' ),
-    ('er_ebrahimi', 'Project Management Database')
+    ('er_ebrahimi', 'Project Management Database'),
+    ('heydari_arman', 'Project Management Database')
 
 GO
 
@@ -396,7 +366,6 @@ VALUES
     ( '20220610', '20220710' , 'quiz in middle of term', 'check', 'quiz', 'Database Course', 'quiz2' , 0  )
 GO
 
---TODO how create project should added to admins_task
 insert into admins_task
 VALUES
     ('m_shahrabi' , 'Database Course', 'quiz1' ),
@@ -417,7 +386,6 @@ VALUEs
     ('hello', 'sadegh_jafari', 'Database Course' , 'quiz1', GETDATE() , '13:30' )
 
 ----------------------------------------------------------------------------------------------------------------------------------------
-
 ------------------------------------------------@function
 GO
 --procedure:
@@ -435,10 +403,11 @@ GO
 create or alter function order_completed_project (@projectID nchar(32))
 returns TABLE
 RETURN
-select m.accountID
+select m.accountID, ROW_NUMBER() OVER (ORDER BY c.[Date] DESC) ordering
 from member m join complete c on c.accountID = m.accountID
 where m.projectID = @projectID
-ORDER BY c.[Date]
+-- ORDER BY c.[Date]
+
 
 GO
 ------------------------------@procedure
@@ -483,7 +452,7 @@ end
 GO
 
 ------------------------------------------view:
--- --create view of projects includes 20times more number of tasks 
+-- --create view of projects includes more than av number of tasks 
 -- --than AVG of it for other projects (susspended projects)
 ----------------------------------------------@view
 create or alter view susspendedProjects
@@ -500,8 +469,8 @@ as
     HAVING avg(counted.count_all) <= count(pro.taskID) 
 
 go
-
-
+-- select * from susspendedProjects
+GO
 -----------------------------------------------view:show the top 10 how has project more
 
 CREATE or ALTER view project_account_amount
@@ -512,6 +481,7 @@ AS
         join project p on p.ProjectID = o.projectID
     GROUP BY a.accountID
     ORDER BY COUNT(p.ProjectID) ASC
+GO
 
 ----------------------------------------------------@20_query 
 -- -----------------------------------------------query:members who didn't do their task 
@@ -550,30 +520,20 @@ AS
 -- GROUP by p.projectID
 -- ORDER BY COUNT(o.accountID) desc
 
--- --------------------------------------------query:find someone how did all the task in one project and did nothing in another project
+-- --------------------------------------------query:find someone how did all the task in one project 
 
---     select m.accountID , m.projectID, complete.complete
---     from member m join complete c on m.accountID = c.accountID
---         join task t on t.taskID = c.taskID join project p on p.ProjectID = m.projectID, member m2 join complete on m2.accountID = complete.accountID
---     -- where complete.complete = 1 and c.projectID = m2.projectID
---     where complete.complete = 1 and c.projectID = m2.projectID and c.accountID = m2.accountID and complete.taskID = c.taskID
---     group by m.projectID,m.accountID,complete.complete
---     HAVING count(complete.taskID) IN (select count(complete.taskID)
---     from member m join complete c on m.accountID = c.accountID
---         join task t on t.taskID = c.taskID, member m2 join complete on m2.accountID = complete.accountID
---     group by m.accountID, complete.taskID )
+-- select m.accountID , m.projectID, complete.complete
+-- from member m join complete c on m.accountID = c.accountID
+--     join task t on t.taskID = c.taskID join project p on p.ProjectID = m.projectID, member m2 join complete on m2.accountID = complete.accountID
+-- -- where complete.complete = 1 and c.projectID = m2.projectID
+-- where complete.complete = 1 and c.projectID = m2.projectID and c.accountID = m2.accountID and complete.taskID = c.taskID
+-- group by m.projectID,m.accountID,complete.complete
+-- HAVING count(complete.taskID) IN (select count(complete.taskID)
+-- from member m join complete c on m.accountID = c.accountID
+--     join task t on t.taskID = c.taskID, member m2 join complete on m2.accountID = complete.accountID
+-- group by m.accountID, complete.taskID )
 
--- INTERSECT
 
---     select m.accountID , m.projectID, complete.complete
---     from member m join complete c on m.accountID = c.accountID
---         join task t on t.taskID = c.taskID join project p on p.ProjectID = m.projectID, member m2 join complete on m2.accountID = complete.accountID
---     where complete.complete = 0 and c.projectID = m2.projectID and c.accountID = m2.accountID and complete.taskID = c.taskID
---     group by m.projectID,m.accountID,complete.complete
---     HAVING count(complete.taskID) IN (select count(complete.taskID)
---     from member m join complete c on m.accountID = c.accountID
---         join task t on t.taskID = c.taskID, member m2 join complete on m2.accountID = complete.accountID
---     group by m.accountID, complete.taskID )
 
 -- ----------------------------------------------query:
 -- --	 Show accounts list and their name sorted by number of projects they attended 
@@ -594,7 +554,7 @@ AS
 --     on o.projectID=p.ProjectID
 -- group by p.projectID;
 
--- ----------------------------------------------query:q5_(i12.5) TODO what is this
+-- ----------------------------------------------query:q5_(i12.5) 
 -- --	show remaining time and passed time for each task of a project
 -- select * , datediff(day ,t.startDate, getdate()) as passedTime_days, datediff(day ,getdate(),t.endDate) as remainigTime_days
 -- from task t
@@ -615,15 +575,14 @@ AS
 
 -- ---------------------------------------------query:q8_(i18)
 -- --	show common members of 2 project
--- select m1.accountID, m1.projectID as firstProjectID, m2.projectID as secondProjectID
+-- select m1.accountID
 -- from member m1 inner join member m2 on m1.accountID=m2.accountID and m1.projectID<>m2.projectID
-
+-- GROUP by  m1.accountID
 -- ---------------------------------------------query:q9_(i19)
 -- --	show members who hasnt done any task
 -- select *
--- from account a
--- where a.accountID not in (select c.accountID
--- from complete c)
+-- from account a join complete c on a.accountID = c.accountID
+-- where  0 = all(select c.complete from complete co where a.accountID = co.accountID)
 
 -- ----------------------------------------------query:q10_(i7)
 -- --	show all projects that a person attends in as member
@@ -644,7 +603,7 @@ AS
 -- --	show tasks of #listID 
 -- select *
 -- from task t
--- where  t.ListID='#listID'
+-- where  t.ListID='quiz'
 
 -- -------------------------------------------------query:qa1_(i1)
 -- -- i1 
@@ -653,13 +612,13 @@ AS
 --     A.accountID AS UserID
 -- FROM observe AS O
 --     JOIN account AS A ON A.accountID = O.accountID
--- WHERE O.projectID = '#P'
+-- WHERE O.projectID = 'Database Course'
 -- -- 'Database Course'
 
 -- SELECT count(*)
 -- FROM observe AS O
 --     JOIN account AS A ON A.accountID = O.accountID
--- WHERE O.projectID = '#P'
+-- WHERE O.projectID = 'Database Course'
 -- -- 'Database Course'
 -- ---------------------------------------------------query:
 -- -- i2 
@@ -669,7 +628,7 @@ AS
 -- FROM task AS T
 --     JOIN List AS L ON T.ListID = L.ListID
 --     JOIN project AS P ON P.ProjectID = T.projectID
--- WHERE T.flag = 0 AND T.projectID = '#P'
+-- WHERE T.flag = 0 AND T.projectID = 'Database Course'
 -- -- 'Database Course'
 -- ----------------------------------------------------query:qa3_(i4)
 -- -- i4
@@ -698,13 +657,14 @@ AS
 
 -- UPDATE task set endDate = '20230710' where taskID = 'quiz1'
 
+-- select * from account where accountID = 'hanie_jafari'
+-- select * from task where taskID = 'quiz1'
 ----------------------------deletes
 ------------------------------@delete_from_table 
 -- delete from comment where commentID = 1
 
 
 -- delete from member where accountID = 'sadegh_jafari'
-
 
 
 -- delete from project WHERE projectID = 'Database Course'
