@@ -397,8 +397,8 @@ SELECT *
 FROM comment c
 WHERE  c.taskID= @taskID
 GO
-select *
-from show_all_comments ('quiz1')
+-- select *
+-- from show_all_comments ('quiz1')
 --exec @show_all_comments = taskID
 GO
 --order the time of task in every project
@@ -410,9 +410,9 @@ from member m join complete c on c.accountID = m.accountID
 where m.projectID = @projectID
 -- ORDER BY c.[Date]
 GO
-select *
-from
-    order_completed_project( 'Database Course')
+-- select *
+-- from
+--     order_completed_project( 'Database Course')
 
 GO
 ------------------------------@procedure
@@ -433,7 +433,7 @@ begin
 	where taskID= @taskid
 end
 GO
-compelete_task @taskid = 'quiz1', @memberid = 'iliya_mirzaei' , @projectid = 'Database Course'
+-- compelete_task @taskid = 'quiz1', @memberid = 'iliya_mirzaei' , @projectid = 'Database Course'
 GO
 
 --procedure:p03_(i11)
@@ -452,7 +452,7 @@ BEGIN
 END
 GO
 
-change_list_taske @taskid = 'quiz1', @newlistid = 'quiz'
+-- change_list_taske @taskid = 'quiz1', @newlistid = 'quiz'
 
 GO
 
