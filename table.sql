@@ -363,7 +363,7 @@ GO
 insert into task
 VALUES
     ( '20220610', '20220710' , 'quiz in middle of term', 'check', 'quiz', 'Database Course', 'quiz1' , 0  ),
-    ( '20220610', '20220710' , 'quiz in middle of term', 'check', 'quiz', 'Database Course', 'quiz2' , 0  )
+    ( '20200610', '20210710' , 'quiz in middle of term', 'check', 'quiz', 'Database Course', 'quiz2' , 0  )
 GO
 
 insert into admins_task
@@ -396,7 +396,9 @@ return
 SELECT *
 FROM comment c
 WHERE  c.taskID= @taskID
-
+GO
+select *
+from show_all_comments ('quiz1')
 --exec @show_all_comments = taskID
 GO
 --order the time of task in every project
@@ -407,47 +409,50 @@ select m.accountID, ROW_NUMBER() OVER (ORDER BY c.[Date] DESC) ordering
 from member m join complete c on c.accountID = m.accountID
 where m.projectID = @projectID
 -- ORDER BY c.[Date]
-
+GO
+select *
+from
+    order_completed_project( 'Database Course')
 
 GO
 ------------------------------@procedure
 --procedure:
 --	compelete task 
-create procedure compelete_task
+create OR ALTER procedure compelete_task
     (@taskid nchar(32) ,
     @memberid nchar(32) ,
     @projectid nchar(32))
 as
 begin
     insert into dbo.complete
-        (complete ,accountID , projectID ,taskID)
-    values( 1, @memberid , @projectid, @taskid)
+        (complete ,accountID , projectID, [Date], [time] ,taskID)
+    values( 1, @memberid , @projectid, GETDATE(), '11:30', @taskid)
 
     update dbo.task
 	set flag =1 
 	where taskID= @taskid
 end
-
-
+GO
+compelete_task @taskid = 'quiz1', @memberid = 'iliya_mirzaei' , @projectid = 'Database Course'
 GO
 
 --procedure:p03_(i11)
 --	compelete task 
-create or alter procedure compelete_task
-    (@taskid nchar(32) ,
-    @memberid nchar(32) ,
-    @projectid nchar(32))
-as
-begin
-    insert into dbo.complete
-        (complete ,accountID , projectID ,taskID)
-    values( 1, @memberid , @projectid, @taskid)
-
+--query:
+--	change list of a task
+CREATE OR ALTER PROCEDURE change_list_taske(
+    @taskid nchar(32) ,
+    @newlistid nchar(32)
+)
+AS
+BEGIN
     update dbo.task
-	set flag =1 
-	where taskID= @taskid
-end
+	set ListID = @newlistid
+	where taskID = @taskid
+END
+GO
 
+change_list_taske @taskid = 'quiz1', @newlistid = 'quiz'
 
 GO
 
@@ -485,7 +490,7 @@ GO
 
 ----------------------------------------------------@20_query 
 -- -----------------------------------------------query:members who didn't do their task 
--- go
+go
 
 -- select m.accountID, a.firstName, a.lastName
 -- from member m join account a on a.accountID = m.accountID
